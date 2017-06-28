@@ -46,6 +46,7 @@ class IssuerFlowTest {
 
     @Test
     fun `test issuer flow`() {
+        val notary = notaryNode.services.myInfo.notaryIdentity
         val (vaultUpdatesBoc, vaultUpdatesBankClient) = bankOfCordaNode.database.transaction {
             // Register for vault updates
             val criteria = QueryCriteria.VaultQueryCriteria(status = Vault.StateStatus.ALL)
@@ -54,7 +55,7 @@ class IssuerFlowTest {
 
             // using default IssueTo Party Reference
             val issuerResult = runIssuerAndIssueRequester(bankOfCordaNode, bankClientNode, 1000000.DOLLARS,
-                    bankClientNode.info.legalIdentity, OpaqueBytes.of(123))
+                    bankClientNode.info.legalIdentity, OpaqueBytes.of(123), notary)
             issuerResult.get()
 
             Pair(vaultUpdatesBoc, vaultUpdatesBankClient)
@@ -93,22 +94,24 @@ class IssuerFlowTest {
 
     @Test
     fun `test issuer flow rejects restricted`() {
+        val notary = notaryNode.services.myInfo.notaryIdentity
         // try to issue an amount of a restricted currency
         assertFailsWith<FlowException> {
             runIssuerAndIssueRequester(bankOfCordaNode, bankClientNode, Amount(100000L, currency("BRL")),
-                    bankClientNode.info.legalIdentity, OpaqueBytes.of(123)).getOrThrow()
+                    bankClientNode.info.legalIdentity, OpaqueBytes.of(123), notary).getOrThrow()
         }
     }
 
     @Test
     fun `test issue flow to self`() {
+        val notary = notaryNode.services.myInfo.notaryIdentity
         val vaultUpdatesBoc = bankOfCordaNode.database.transaction {
             val criteria = QueryCriteria.VaultQueryCriteria(status = Vault.StateStatus.ALL)
             val (_, vaultUpdatesBoc) = bankOfCordaNode.services.vaultQueryService.trackBy<Cash.State>(criteria)
 
             // using default IssueTo Party Reference
             runIssuerAndIssueRequester(bankOfCordaNode, bankOfCordaNode, 1000000.DOLLARS,
-                    bankOfCordaNode.info.legalIdentity, OpaqueBytes.of(123)).getOrThrow()
+                    bankOfCordaNode.info.legalIdentity, OpaqueBytes.of(123), notary).getOrThrow()
             vaultUpdatesBoc
         }
 
@@ -126,12 +129,13 @@ class IssuerFlowTest {
 
     @Test
     fun `test concurrent issuer flow`() {
+        val notary = notaryNode.services.myInfo.notaryIdentity
         // this test exercises the Cashflow issue and move subflows to ensure consistent spending of issued states
         val amount = 10000.DOLLARS
         val amounts = calculateRandomlySizedAmounts(10000.DOLLARS, 10, 10, Random())
         val handles = amounts.map { pennies ->
             runIssuerAndIssueRequester(bankOfCordaNode, bankClientNode, Amount(pennies, amount.token),
-                    bankClientNode.info.legalIdentity, OpaqueBytes.of(123))
+                    bankClientNode.info.legalIdentity, OpaqueBytes.of(123), notary)
         }
         handles.forEach {
             require(it.get().stx is SignedTransaction)
@@ -141,10 +145,11 @@ class IssuerFlowTest {
     private fun runIssuerAndIssueRequester(issuerNode: MockNode,
                                            issueToNode: MockNode,
                                            amount: Amount<Currency>,
-                                           party: Party,
-                                           ref: OpaqueBytes): ListenableFuture<AbstractCashFlow.Result> {
-        val issueToPartyAndRef = party.ref(ref)
-        val issueRequest = IssuanceRequester(amount, party, issueToPartyAndRef.reference, issuerNode.info.legalIdentity,
+                                           issueToParty: Party,
+                                           ref: OpaqueBytes,
+                                           notaryParty: Party): ListenableFuture<AbstractCashFlow.Result> {
+        val issueToPartyAndRef = issueToParty.ref(ref)
+        val issueRequest = IssuanceRequester(amount, issueToParty, issueToPartyAndRef.reference, issuerNode.info.legalIdentity, notaryParty,
                 anonymous = false)
         return issueToNode.services.startFlow(issueRequest).resultFuture
     }
