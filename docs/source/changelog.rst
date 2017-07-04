@@ -31,6 +31,9 @@ UNRELEASED
 * Added additional common Sort attributes (see ``Sort.CommandStateAttribute``) for use in Vault Query criteria
   to include STATE_REF, STATE_REF_TXN_ID, STATE_REF_INDEX
 
+* Data Vending service has been removed in this release to enhance data security. CorDapp developers should use the new
+  ``SendDataFlow`` in the flow logic to allow data access from their corresponding counter-flow.
+
 Milestone 13
 ------------
 
