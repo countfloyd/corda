@@ -55,7 +55,7 @@ class IssuerFlowTest {
 
             // using default IssueTo Party Reference
             val issuerResult = runIssuerAndIssueRequester(bankOfCordaNode, bankClientNode, 1000000.DOLLARS,
-                    bankClientNode.info.legalIdentity, OpaqueBytes.of(123), notary)
+                    bankClientNode.info.legalIdentity, OpaqueBytes.of(123), notary, anonymous = true)
             issuerResult.get()
 
             Pair(vaultUpdatesBoc, vaultUpdatesBankClient)
@@ -98,7 +98,55 @@ class IssuerFlowTest {
         // try to issue an amount of a restricted currency
         assertFailsWith<FlowException> {
             runIssuerAndIssueRequester(bankOfCordaNode, bankClientNode, Amount(100000L, currency("BRL")),
-                    bankClientNode.info.legalIdentity, OpaqueBytes.of(123), notary).getOrThrow()
+                    bankClientNode.info.legalIdentity, OpaqueBytes.of(123), notary, anonymous = true).getOrThrow()
+        }
+    }
+
+    @Test
+    fun `test issuer flow without anonymisation`() {
+        val notary = notaryNode.services.myInfo.notaryIdentity
+        val (vaultUpdatesBoc, vaultUpdatesBankClient) = bankOfCordaNode.database.transaction {
+            // Register for vault updates
+            val criteria = QueryCriteria.VaultQueryCriteria(status = Vault.StateStatus.ALL)
+            val (_, vaultUpdatesBoc) = bankOfCordaNode.services.vaultQueryService.trackBy<Cash.State>(criteria)
+            val (_, vaultUpdatesBankClient) = bankClientNode.services.vaultQueryService.trackBy<Cash.State>(criteria)
+
+            // using default IssueTo Party Reference
+            val issuerResult = runIssuerAndIssueRequester(bankOfCordaNode, bankClientNode, 1000000.DOLLARS,
+                    bankClientNode.info.legalIdentity, OpaqueBytes.of(123), notary, anonymous = false)
+            issuerResult.get()
+
+            Pair(vaultUpdatesBoc, vaultUpdatesBankClient)
+        }
+
+        // Check Bank of Corda Vault Updates
+        vaultUpdatesBoc.expectEvents {
+            sequence(
+                    // ISSUE
+                    expect { update ->
+                        require(update.consumed.isEmpty()) { "Expected 0 consumed states, actual: $update" }
+                        require(update.produced.size == 1) { "Expected 1 produced states, actual: $update" }
+                        val issued = update.produced.single().state.data as Cash.State
+                        require(issued.owner == bankOfCordaNode.info.legalIdentity)
+                        require(issued.owner != bankClientNode.info.legalIdentity)
+                    },
+                    // MOVE
+                    expect { update ->
+                        require(update.consumed.size == 1) { "Expected 1 consumed states, actual: $update" }
+                        require(update.produced.isEmpty()) { "Expected 0 produced states, actual: $update" }
+                    }
+            )
+        }
+
+        // Check Bank Client Vault Updates
+        vaultUpdatesBankClient.expectEvents {
+            // MOVE
+            expect { update ->
+                require(update.consumed.isEmpty()) { update.consumed.size }
+                require(update.produced.size == 1) { update.produced.size }
+                val paidState = update.produced.single().state.data as Cash.State
+                require(paidState.owner == bankClientNode.info.legalIdentity)
+            }
         }
     }
 
@@ -111,7 +159,7 @@ class IssuerFlowTest {
 
             // using default IssueTo Party Reference
             runIssuerAndIssueRequester(bankOfCordaNode, bankOfCordaNode, 1000000.DOLLARS,
-                    bankOfCordaNode.info.legalIdentity, OpaqueBytes.of(123), notary).getOrThrow()
+                    bankOfCordaNode.info.legalIdentity, OpaqueBytes.of(123), notary, anonymous = true).getOrThrow()
             vaultUpdatesBoc
         }
 
@@ -135,7 +183,22 @@ class IssuerFlowTest {
         val amounts = calculateRandomlySizedAmounts(10000.DOLLARS, 10, 10, Random())
         val handles = amounts.map { pennies ->
             runIssuerAndIssueRequester(bankOfCordaNode, bankClientNode, Amount(pennies, amount.token),
-                    bankClientNode.info.legalIdentity, OpaqueBytes.of(123), notary)
+                    bankClientNode.info.legalIdentity, OpaqueBytes.of(123), notary, anonymous = true)
+        }
+        handles.forEach {
+            require(it.get().stx is SignedTransaction)
+        }
+    }
+
+    @Test
+    fun `test concurrent issuer flow without anonymisation`() {
+        val notary = notaryNode.services.myInfo.notaryIdentity
+        // this test exercises the Cashflow issue and move subflows to ensure consistent spending of issued states
+        val amount = 10000.DOLLARS
+        val amounts = calculateRandomlySizedAmounts(10000.DOLLARS, 10, 10, Random())
+        val handles = amounts.map { pennies ->
+            runIssuerAndIssueRequester(bankOfCordaNode, bankClientNode, Amount(pennies, amount.token),
+                    bankClientNode.info.legalIdentity, OpaqueBytes.of(123), notary, anonymous = false)
         }
         handles.forEach {
             require(it.get().stx is SignedTransaction)
@@ -147,10 +210,11 @@ class IssuerFlowTest {
                                            amount: Amount<Currency>,
                                            issueToParty: Party,
                                            ref: OpaqueBytes,
-                                           notaryParty: Party): ListenableFuture<AbstractCashFlow.Result> {
+                                           notaryParty: Party,
+                                           anonymous: Boolean): ListenableFuture<AbstractCashFlow.Result> {
         val issueToPartyAndRef = issueToParty.ref(ref)
         val issueRequest = IssuanceRequester(amount, issueToParty, issueToPartyAndRef.reference, issuerNode.info.legalIdentity, notaryParty,
-                anonymous = false)
+                anonymous)
         return issueToNode.services.startFlow(issueRequest).resultFuture
     }
 }
