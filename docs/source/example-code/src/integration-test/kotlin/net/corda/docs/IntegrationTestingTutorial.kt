@@ -6,6 +6,7 @@ import net.corda.contracts.asset.Cash
 import net.corda.core.contracts.DOLLARS
 import net.corda.core.getOrThrow
 import net.corda.core.messaging.startFlow
+import net.corda.core.messaging.vaultTrackBy
 import net.corda.core.node.services.ServiceInfo
 import net.corda.core.node.services.Vault
 import net.corda.core.utilities.OpaqueBytes
@@ -57,8 +58,8 @@ class IntegrationTestingTutorial {
             // END 2
 
             // START 3
-            val bobVaultUpdates = bobProxy.vaultAndUpdates().second
-            val aliceVaultUpdates = aliceProxy.vaultAndUpdates().second
+            val bobVaultUpdates = bobProxy.vaultTrackBy<Cash.State>().updates
+            val aliceVaultUpdates = aliceProxy.vaultTrackBy<Cash.State>().updates
             // END 3
 
             // START 4

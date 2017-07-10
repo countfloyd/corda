@@ -17,10 +17,15 @@ import javafx.scene.layout.StackPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
 import javafx.util.Duration
+import net.corda.contracts.asset.Cash
+import net.corda.core.contracts.ContractState
 import net.corda.core.crypto.commonName
 import net.corda.core.match
 import net.corda.core.then
 import net.corda.core.messaging.CordaRPCOps
+import net.corda.core.messaging.vaultTrackBy
+import net.corda.core.node.services.vault.DEFAULT_PAGE_NUM
+import net.corda.core.node.services.vault.PageSpecification
 import net.corda.demobench.explorer.ExplorerController
 import net.corda.demobench.model.NodeConfig
 import net.corda.demobench.model.NodeController
@@ -183,10 +188,10 @@ class NodeTerminalView : Fragment() {
     private fun initialise(config: NodeConfig, ops: CordaRPCOps) {
         try {
             val (txInit, txNext) = ops.verifiedTransactions()
-            val (stateInit, stateNext) = ops.vaultAndUpdates()
+            val (stateInit, stateNext) = ops.vaultTrackBy<Cash.State>(paging = PageSpecification(DEFAULT_PAGE_NUM))
 
             txCount = txInit.size
-            stateCount = stateInit.size
+            stateCount = stateInit.totalStatesAvailable
 
             Platform.runLater {
                 logo.opacityProperty().animate(1.0, Duration.seconds(2.5))
