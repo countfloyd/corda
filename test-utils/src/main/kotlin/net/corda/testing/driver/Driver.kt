@@ -505,7 +505,7 @@ class DriverDSL(
     }
 
     override fun waitForAllNodesToFinish() = state.locked {
-        processes.transpose().getOrThrow().forEach {
+        processes.transpose().get().forEach {
             it.waitFor()
         }
     }
