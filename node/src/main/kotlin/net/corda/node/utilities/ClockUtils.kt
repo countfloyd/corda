@@ -3,7 +3,6 @@ package net.corda.node.utilities
 import co.paralleluniverse.fibers.Suspendable
 import co.paralleluniverse.strands.SettableFuture
 import com.google.common.util.concurrent.ListenableFuture
-import net.corda.core.concurrent.CordaFuture
 import net.corda.core.concurrent.get
 import net.corda.core.seconds
 import rx.Observable
@@ -101,7 +100,7 @@ fun Clock.awaitWithDeadline(deadline: Instant, future: Future<*> = GuavaSettable
 }
 
 /**
- * Convert a [CordaFuture], Guava [ListenableFuture] or JDK8 [CompletableFuture] to Quasar implementation and set to true when a result
+ * Convert a Guava [ListenableFuture] or JDK8 [CompletableFuture] to Quasar implementation and set to true when a result
  * or [Throwable] is available in the original.
  *
  * We need this so that we do not block the actual thread when calling get(), but instead allow a Quasar context
@@ -109,7 +108,6 @@ fun Clock.awaitWithDeadline(deadline: Instant, future: Future<*> = GuavaSettable
  */
 private fun <T : Any> makeStrandFriendlySettableFuture(future: Future<T>) = SettableFuture<Boolean>().also { g ->
     when (future) {
-        is CordaFuture<*> -> future.then { g.set(true) }
         is ListenableFuture -> future.addListener(Runnable { g.set(true) }, Executor { it.run() })
         is CompletionStage<*> -> future.whenComplete { _, _ -> g.set(true) }
         else -> throw IllegalArgumentException("Cannot make future $future Fiber friendly.")
