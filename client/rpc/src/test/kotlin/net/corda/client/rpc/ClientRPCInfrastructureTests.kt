@@ -2,7 +2,10 @@ package net.corda.client.rpc
 
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
-import net.corda.core.concurrent.*
+import net.corda.core.concurrent.CordaFuture
+import net.corda.core.concurrent.doneFuture
+import net.corda.core.concurrent.getOrThrow
+import net.corda.core.concurrent.openFuture
 import net.corda.core.messaging.RPCOps
 import net.corda.node.services.messaging.getRpcContext
 import net.corda.nodeapi.RPCSinceVersion
