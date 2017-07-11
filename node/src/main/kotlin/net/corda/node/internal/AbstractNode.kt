@@ -8,7 +8,6 @@ import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner
 import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult
 import net.corda.core.*
 import net.corda.core.concurrent.CordaFuture
-import net.corda.core.concurrent.OpenFuture
 import net.corda.core.concurrent.openFuture
 import net.corda.core.crypto.*
 import net.corda.core.flows.*
@@ -138,7 +137,7 @@ abstract class AbstractNode(open val configuration: NodeConfiguration,
     var isPreviousCheckpointsPresent = false
         private set
 
-    protected val _networkMapRegistrationFuture: OpenFuture<Unit> = openFuture()
+    protected val _networkMapRegistrationFuture = openFuture<Unit>()
     /** Completes once the node has successfully registered with the network map service */
     val networkMapRegistrationFuture: CordaFuture<Unit>
         get() = _networkMapRegistrationFuture
@@ -213,7 +212,7 @@ abstract class AbstractNode(open val configuration: NodeConfiguration,
             initUploaders()
 
             runOnStop += network::stop
-            registerWithNetworkMapIfConfigured().then { _networkMapRegistrationFuture.catch { it.getOrThrow() } }
+            _networkMapRegistrationFuture.setLater(registerWithNetworkMapIfConfigured())
             smm.start()
             // Shut down the SMM so no Fibers are scheduled.
             runOnStop += { smm.stop(acceptableLiveFiberCountOnStop()) }

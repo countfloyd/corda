@@ -36,9 +36,7 @@ interface CordaFuture<out V> {
     fun <W> flatMap(transform: (V) -> CordaFuture<W>): CordaFuture<W> = CordaFutureImpl<W>().also { g ->
         thenMatch({
             ErrorOr.catch { transform(it) }.match({
-                it.then {
-                    g.catch { it.getOrThrow() }
-                }
+                g.setLater(it)
             }, {
                 g.setException(it)
             })
@@ -52,6 +50,7 @@ interface ValueOrException<in V> {
     fun unwrap(): CompletableFuture<in V>
     fun set(value: V): Boolean
     fun setException(t: Throwable): Boolean
+    fun setLater(f: CordaFuture<V>) = f.then { catch { f.getOrThrow() } }
     /** Executes the given block and sets the future to either the result, or any exception that was thrown. */
     fun catch(block: () -> V): Boolean {
         return set(try {
