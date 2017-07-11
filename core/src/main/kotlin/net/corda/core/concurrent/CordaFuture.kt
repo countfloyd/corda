@@ -5,6 +5,7 @@ import org.slf4j.Logger
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+import java.util.concurrent.Future
 
 fun <V> future(block: () -> V): CordaFuture<V> = CordaFutureImpl(CompletableFuture.supplyAsync(block))
 fun <V> openFuture(): OpenFuture<V> = CordaFutureImpl()
@@ -12,6 +13,7 @@ fun <V> doneFuture(value: V): CordaFuture<V> = CordaFutureImpl<V>().apply { set(
 fun <V> Executor.fork(block: () -> V): CordaFuture<V> = CordaFutureImpl<V>().also { execute { it.catch(block) } }
 
 interface CordaFuture<out V> {
+    fun unwrap(): Future<out V>
     fun cancel(mayInterruptIfRunning: Boolean): Boolean
     val isCancelled: Boolean
     val isDone: Boolean
@@ -47,6 +49,7 @@ interface CordaFuture<out V> {
 }
 
 interface ValueOrException<in V> {
+    fun unwrap(): CompletableFuture<in V>
     fun set(value: V): Boolean
     fun setException(t: Throwable): Boolean
     /** Executes the given block and sets the future to either the result, or any exception that was thrown. */
@@ -59,9 +62,12 @@ interface ValueOrException<in V> {
     }
 }
 
-interface OpenFuture<V> : ValueOrException<V>, CordaFuture<V>
+interface OpenFuture<V> : ValueOrException<V>, CordaFuture<V> {
+    override fun unwrap(): CompletableFuture<V>
+}
 
 private class CordaFutureImpl<V>(private val impl: CompletableFuture<V> = CompletableFuture()) : OpenFuture<V> {
+    override fun unwrap() = impl
     override fun cancel(mayInterruptIfRunning: Boolean) = impl.cancel(mayInterruptIfRunning)
     override val isCancelled get() = impl.isCancelled
     override val isDone get() = impl.isDone
