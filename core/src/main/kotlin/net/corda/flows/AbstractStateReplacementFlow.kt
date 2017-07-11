@@ -11,7 +11,6 @@ import net.corda.core.flows.FlowLogic
 import net.corda.core.identity.Party
 import net.corda.core.serialization.CordaSerializable
 import net.corda.core.transactions.SignedTransaction
-import net.corda.core.transactions.WireTransaction
 import net.corda.core.utilities.ProgressTracker
 import net.corda.core.utilities.UntrustworthyData
 import net.corda.core.utilities.unwrap
@@ -77,7 +76,15 @@ abstract class AbstractStateReplacementFlow {
 
             val finalTx = stx + signatures
             serviceHub.recordTransactions(finalTx)
-            return finalTx.tx.outRef(0)
+
+            val newOutput = run {
+                if (stx.isNotaryChangeTransaction()) {
+                    stx.resolveNotaryChangeTransaction(serviceHub).outRef<T>(0)
+                }
+                else stx.tx.outRef<T>(0)
+            }
+
+            return newOutput
         }
 
         /**
@@ -155,11 +162,10 @@ abstract class AbstractStateReplacementFlow {
 
         @Suspendable
         private fun verifyTx(stx: SignedTransaction) {
-            checkMySignatureRequired(stx.tx)
+            checkMySignatureRequired(stx)
             checkDependenciesValid(stx)
-            // We expect stx to have insufficient signatures, so we convert the WireTransaction to the LedgerTransaction
-            // here, thus bypassing the sufficient-signatures check.
-            stx.tx.toLedgerTransaction(serviceHub).verify()
+            // We expect stx to have insufficient signatures here
+            stx.verify(serviceHub, checkSufficientSignatures = false)
         }
 
         @Suspendable
@@ -176,7 +182,10 @@ abstract class AbstractStateReplacementFlow {
             }
 
             val finalTx = stx + allSignatures
-            finalTx.verifySignatures()
+            // TODO: abstract this check away
+            if (finalTx.isNotaryChangeTransaction()) {
+                finalTx.resolveNotaryChangeTransaction(serviceHub).verifySignatures(finalTx.sigs)
+            } else finalTx.verifySignatures()
             serviceHub.recordTransactions(finalTx)
         }
 
@@ -188,15 +197,20 @@ abstract class AbstractStateReplacementFlow {
         @Throws(StateReplacementException::class)
         abstract protected fun verifyProposal(proposal: Proposal<T>)
 
-        private fun checkMySignatureRequired(tx: WireTransaction) {
+        private fun checkMySignatureRequired(stx: SignedTransaction) {
             // TODO: use keys from the keyManagementService instead
             val myKey = serviceHub.myInfo.legalIdentity.owningKey
-            require(myKey in tx.requiredSigningKeys) { "Party is not a participant for any of the input states of transaction ${tx.id}" }
+
+            val requiredKeys = if (stx.isNotaryChangeTransaction()) {
+                stx.resolveNotaryChangeTransaction(serviceHub).requiredSigningKeys
+            } else stx.tx.requiredSigningKeys
+
+            require(myKey in requiredKeys) { "Party is not a participant for any of the input states of transaction ${stx.id}" }
         }
 
         @Suspendable
         private fun checkDependenciesValid(stx: SignedTransaction) {
-            subFlow(ResolveTransactionsFlow(stx.tx, otherSide))
+            subFlow(ResolveTransactionsFlow(stx, otherSide))
         }
 
         private fun sign(stx: SignedTransaction): DigitalSignature.WithKey {
