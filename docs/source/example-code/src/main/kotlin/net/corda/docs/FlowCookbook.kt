@@ -4,9 +4,6 @@ import co.paralleluniverse.fibers.Suspendable
 import net.corda.contracts.asset.Cash
 import net.corda.core.contracts.*
 import net.corda.core.contracts.TransactionType.General
-import net.corda.core.contracts.TransactionType.NotaryChange
-import net.corda.testing.contracts.DummyContract
-import net.corda.testing.contracts.DummyState
 import net.corda.core.crypto.DigitalSignature
 import net.corda.core.crypto.SecureHash
 import net.corda.core.flows.*
@@ -19,7 +16,6 @@ import net.corda.core.transactions.LedgerTransaction
 import net.corda.core.transactions.SignedTransaction
 import net.corda.core.transactions.TransactionBuilder
 import net.corda.core.transactions.WireTransaction
-import net.corda.testing.DUMMY_PUBKEY_1
 import net.corda.core.utilities.ProgressTracker
 import net.corda.core.utilities.ProgressTracker.Step
 import net.corda.core.utilities.UntrustworthyData
@@ -28,6 +24,9 @@ import net.corda.flows.CollectSignaturesFlow
 import net.corda.flows.FinalityFlow
 import net.corda.flows.ResolveTransactionsFlow
 import net.corda.flows.SignTransactionFlow
+import net.corda.testing.DUMMY_PUBKEY_1
+import net.corda.testing.contracts.DummyContract
+import net.corda.testing.contracts.DummyState
 import org.bouncycastle.asn1.x500.X500Name
 import java.security.PublicKey
 import java.time.Duration
@@ -296,16 +295,13 @@ object FlowCookbook {
             -----------------------**/
             progressTracker.currentStep = TX_BUILDING
 
-            // There are two types of transaction (notary-change and general),
-            // and therefore two types of transaction builder:
             // DOCSTART 19
-            val notaryChangeTxBuilder: TransactionBuilder = TransactionBuilder(NotaryChange, specificNotary)
-            val regTxBuilder: TransactionBuilder = TransactionBuilder(General, specificNotary)
+            val txBuilder: TransactionBuilder = TransactionBuilder(General, specificNotary)
             // DOCEND 19
 
             // We add items to the transaction builder using ``TransactionBuilder.withItems``:
             // DOCSTART 27
-            regTxBuilder.withItems(
+            txBuilder.withItems(
                     // Inputs, as ``StateRef``s that reference the outputs of previous transactions
                     ourStateAndRef,
                     // Outputs, as ``ContractState``s
@@ -317,20 +313,20 @@ object FlowCookbook {
 
             // We can also add items using methods for the individual components:
             // DOCSTART 28
-            regTxBuilder.addInputState(ourStateAndRef)
-            regTxBuilder.addOutputState(ourOutput)
-            regTxBuilder.addCommand(ourCommand)
-            regTxBuilder.addAttachment(ourAttachment)
+            txBuilder.addInputState(ourStateAndRef)
+            txBuilder.addOutputState(ourOutput)
+            txBuilder.addCommand(ourCommand)
+            txBuilder.addAttachment(ourAttachment)
             // DOCEND 28
 
             // There are several ways of setting the transaction's time-window.
             // We can set a time-window directly:
             // DOCSTART 44
-            regTxBuilder.setTimeWindow(ourTimeWindow)
+            txBuilder.setTimeWindow(ourTimeWindow)
             // DOCEND 44
             // Or as a start time plus a duration (e.g. 45 seconds):
             // DOCSTART 45
-            regTxBuilder.setTimeWindow(serviceHub.clock.instant(), Duration.ofSeconds(45))
+            txBuilder.setTimeWindow(serviceHub.clock.instant(), Duration.ofSeconds(45))
             // DOCEND 45
 
             /**----------------------
@@ -341,12 +337,12 @@ object FlowCookbook {
             // We finalise the transaction by signing it, converting it into a
             // ``SignedTransaction``.
             // DOCSTART 29
-            val onceSignedTx: SignedTransaction = serviceHub.signInitialTransaction(regTxBuilder)
+            val onceSignedTx: SignedTransaction = serviceHub.signInitialTransaction(txBuilder)
             // DOCEND 29
             // We can also sign the transaction using a different public key:
             // DOCSTART 30
             val otherKey: PublicKey = serviceHub.keyManagementService.freshKey()
-            val onceSignedTx2: SignedTransaction = serviceHub.signInitialTransaction(regTxBuilder, otherKey)
+            val onceSignedTx2: SignedTransaction = serviceHub.signInitialTransaction(txBuilder, otherKey)
             // DOCEND 30
 
             // If instead this was a ``SignedTransaction`` that we'd received

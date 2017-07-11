@@ -1,17 +1,16 @@
 package net.corda.core.contracts
 
 import net.corda.contracts.asset.DUMMY_CASH_ISSUER_KEY
-import net.corda.testing.contracts.DummyContract
 import net.corda.core.crypto.CompositeKey
 import net.corda.core.crypto.SecureHash
 import net.corda.core.crypto.generateKeyPair
 import net.corda.core.crypto.sign
 import net.corda.core.identity.Party
-import net.corda.core.serialization.SerializedBytes
 import net.corda.core.transactions.LedgerTransaction
 import net.corda.core.transactions.SignedTransaction
 import net.corda.core.transactions.WireTransaction
 import net.corda.testing.*
+import net.corda.testing.contracts.DummyContract
 import org.junit.Test
 import java.security.KeyPair
 import kotlin.test.assertEquals
@@ -19,9 +18,10 @@ import kotlin.test.assertFailsWith
 
 class TransactionTests {
 
-    private fun makeSigned(wtx: WireTransaction, vararg keys: KeyPair): SignedTransaction {
-        val bytes: SerializedBytes<WireTransaction> = wtx.serialized
-        return SignedTransaction(bytes, keys.map { it.sign(wtx.id.bytes) })
+    private fun makeSigned(wtx: WireTransaction, vararg keys: KeyPair, notarySig: Boolean = true): SignedTransaction {
+        val keySigs = keys.map { it.sign(wtx.id.bytes) }
+        val sigs = if (notarySig) keySigs + DUMMY_NOTARY_KEY.sign(wtx.id.bytes) else keySigs
+        return SignedTransaction(wtx, sigs)
     }
 
     @Test
@@ -70,7 +70,7 @@ class TransactionTests {
                 type = TransactionType.General,
                 timeWindow = null
         )
-        assertFailsWith<IllegalArgumentException> { makeSigned(wtx).verifySignatures() }
+        assertFailsWith<IllegalArgumentException> { makeSigned(wtx, notarySig = false).verifySignatures() }
 
         assertEquals(
                 setOf(DUMMY_KEY_1.public),
@@ -111,7 +111,7 @@ class TransactionTests {
                 TransactionType.General
         )
 
-        transaction.type.verify(transaction)
+        transaction.verify()
     }
 
     @Test
@@ -136,7 +136,7 @@ class TransactionTests {
                 TransactionType.General
         )
 
-        assertFailsWith<TransactionVerificationException.DuplicateInputStates> { transaction.type.verify(transaction) }
+        assertFailsWith<TransactionVerificationException.DuplicateInputStates> { transaction.verify() }
     }
 
     @Test
@@ -161,6 +161,6 @@ class TransactionTests {
                 TransactionType.General
         )
 
-        assertFailsWith<TransactionVerificationException.NotaryChangeInWrongTransactionType> { transaction.type.verify(transaction) }
+        assertFailsWith<TransactionVerificationException.NotaryChangeInWrongTransactionType> { transaction.verify() }
     }
 }
