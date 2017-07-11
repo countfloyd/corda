@@ -162,7 +162,7 @@ object RPCApi {
 
         data class Observation(
                 val id: ObservableId,
-                val content: Notification<Any>
+                val content: Notification<*>
         ) : ServerToClient() {
             override fun writeToClientMessage(kryoPool: KryoPool, message: ClientMessage) {
                 message.putIntProperty(TAG_FIELD_NAME, Tag.OBSERVATION.ordinal)

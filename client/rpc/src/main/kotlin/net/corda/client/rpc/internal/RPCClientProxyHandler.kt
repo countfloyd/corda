@@ -113,7 +113,7 @@ class RPCClientProxyHandler(
     private val kryoPoolWithObservableContext = RpcClientObservableSerializer.createPoolWithContext(kryoPool, observableContext)
 
     private fun createRpcObservableMap(): RpcObservableMap {
-        val onObservableRemove = RemovalListener<RPCApi.ObservableId, UnicastSubject<Notification<Any>>> {
+        val onObservableRemove = RemovalListener<RPCApi.ObservableId, UnicastSubject<Notification<*>>> {
             val rpcCallSite = callSiteMap?.remove(it.key.toLong)
             if (it.cause == RemovalCause.COLLECTED) {
                 log.warn(listOf(
@@ -337,7 +337,7 @@ class RPCClientProxyHandler(
     }
 }
 
-private typealias RpcObservableMap = Cache<RPCApi.ObservableId, UnicastSubject<Notification<Any>>>
+private typealias RpcObservableMap = Cache<RPCApi.ObservableId, UnicastSubject<Notification<*>>>
 private typealias RpcReplyMap = ConcurrentHashMap<RPCApi.RpcRequestId, SettableFuture<Any?>>
 private typealias CallSiteMap = ConcurrentHashMap<Long, Throwable?>
 
@@ -356,17 +356,16 @@ private data class ObservableContext(
 /**
  * A [Serializer] to deserialise Observables once the corresponding Kryo instance has been provided with an [ObservableContext].
  */
-private object RpcClientObservableSerializer : Serializer<Observable<Any>>() {
+private object RpcClientObservableSerializer : Serializer<Observable<*>>() {
     private object RpcObservableContextKey
     fun createPoolWithContext(kryoPool: KryoPool, observableContext: ObservableContext): KryoPool {
         return KryoPoolWithContext(kryoPool, RpcObservableContextKey, observableContext)
     }
 
-    override fun read(kryo: Kryo, input: Input, type: Class<Observable<Any>>): Observable<Any> {
-        @Suppress("UNCHECKED_CAST")
+    override fun read(kryo: Kryo, input: Input, type: Class<Observable<*>>): Observable<Any> {
         val observableContext = kryo.context[RpcObservableContextKey] as ObservableContext
         val observableId = RPCApi.ObservableId(input.readLong(true))
-        val observable = UnicastSubject.create<Notification<Any>>()
+        val observable = UnicastSubject.create<Notification<*>>()
         require(observableContext.observableMap.getIfPresent(observableId) == null) {
             "Multiple Observables arrived with the same ID $observableId"
         }
@@ -383,7 +382,7 @@ private object RpcClientObservableSerializer : Serializer<Observable<Any>>() {
         }.dematerialize()
     }
 
-    override fun write(kryo: Kryo, output: Output, observable: Observable<Any>) {
+    override fun write(kryo: Kryo, output: Output, observable: Observable<*>) {
         throw UnsupportedOperationException("Cannot serialise Observables on the client side")
     }
 

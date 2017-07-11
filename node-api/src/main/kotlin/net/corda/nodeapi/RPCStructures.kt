@@ -46,17 +46,16 @@ class PermissionException(msg: String) : RuntimeException(msg)
 // The Kryo used for the RPC wire protocol. Every type in the wire protocol is listed here explicitly.
 // This is annoying to write out, but will make it easier to formalise the wire protocol when the time comes,
 // because we can see everything we're using in one place.
-class RPCKryo(observableSerializer: Serializer<Observable<Any>>) : CordaKryo(makeStandardClassResolver()) {
+class RPCKryo(observableSerializer: Serializer<Observable<*>>) : CordaKryo(makeStandardClassResolver()) {
     init {
         DefaultKryoCustomizer.customize(this)
 
         // RPC specific classes
         register(InputStream::class.java, InputStreamSerializer)
         register(Observable::class.java, observableSerializer)
-        @Suppress("UNCHECKED_CAST")
         register(CordaFuture::class,
-                read = { kryo, input -> observableSerializer.read(kryo, input, Observable::class.java as Class<Observable<Any>>).toFuture() },
-                write = { kryo, output, obj -> observableSerializer.write(kryo, output, obj.toObservable() as Observable<Any>) }
+                read = { kryo, input -> observableSerializer.read(kryo, input, Observable::class.java).toFuture() },
+                write = { kryo, output, obj -> observableSerializer.write(kryo, output, obj.toObservable()) }
         )
     }
 

@@ -301,10 +301,10 @@ class RPCStabilityTests {
             return Observable.interval(interval.toMillis(), TimeUnit.MILLISECONDS).map { chunk }
         }
     }
-    val dummyObservableSerialiser = object : Serializer<Observable<Any>>() {
-        override fun write(kryo: Kryo?, output: Output?, `object`: Observable<Any>?) {
+    val dummyObservableSerialiser = object : Serializer<Observable<*>>() {
+        override fun write(kryo: Kryo?, output: Output?, `object`: Observable<*>?) {
         }
-        override fun read(kryo: Kryo?, input: Input?, type: Class<Observable<Any>>?): Observable<Any> {
+        override fun read(kryo: Kryo?, input: Input?, type: Class<Observable<*>>?): Observable<Any> {
             return Observable.empty()
         }
     }
