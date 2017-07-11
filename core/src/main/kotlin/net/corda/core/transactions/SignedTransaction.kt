@@ -51,9 +51,8 @@ data class SignedTransaction(val txBits: SerializedBytes<WireTransaction>,
 
     @CordaSerializable
     class SignaturesMissingException(val missing: Set<PublicKey>, val descriptions: List<String>, override val id: SecureHash) : NamedByHash, SignatureException() {
-        override fun toString(): String {
-            return "Missing signatures for $descriptions on transaction ${id.prefixChars()} for ${missing.joinToString()}"
-        }
+        override val message: String
+            get() = "Missing signatures for $descriptions on transaction ${id.prefixChars()} for ${missing.joinToString()}"
     }
 
     /**
