@@ -1,7 +1,7 @@
 package net.corda.node.services.network
 
 import com.google.common.annotations.VisibleForTesting
-import net.corda.core.*
+import net.corda.core.bufferUntilSubscribed
 import net.corda.core.concurrent.CordaFuture
 import net.corda.core.concurrent.openFuture
 import net.corda.core.identity.AbstractParty
@@ -121,7 +121,7 @@ open class InMemoryNetworkMapCache(private val serviceHub: ServiceHub?) : Single
             nodes?.forEach { processRegistration(it) }
             Unit
         }
-        future.then { _registrationFuture.catch { it.getOrThrow() } }
+        _registrationFuture.setLater(future)
 
         return future
     }
@@ -156,7 +156,7 @@ open class InMemoryNetworkMapCache(private val serviceHub: ServiceHub?) : Single
         val future = network.sendRequest<SubscribeResponse>(NetworkMapService.SUBSCRIPTION_TOPIC, req, address).map {
             if (it.confirmed) Unit else throw NetworkCacheError.DeregistrationFailed()
         }
-        future.then { _registrationFuture.catch { it.getOrThrow() } }
+        _registrationFuture.setLater(future)
         return future
     }
 
