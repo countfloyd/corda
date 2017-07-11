@@ -32,7 +32,7 @@ UNRELEASED
   to include STATE_REF, STATE_REF_TXN_ID, STATE_REF_INDEX
 
 * Data Vending service has been removed in this release to enhance data security. CorDapp developers should use the new
-  ``SendDataFlow`` in the flow logic to allow data access from their corresponding counter-flow.
+  ``SendTransactionFlow`` in the flow logic to allow data access from their corresponding counter-flow.
 
 Milestone 13
 ------------

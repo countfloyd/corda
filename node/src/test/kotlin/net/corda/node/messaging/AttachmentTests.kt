@@ -9,10 +9,10 @@ import net.corda.core.flows.InitiatedBy
 import net.corda.core.flows.InitiatingFlow
 import net.corda.core.getOrThrow
 import net.corda.core.identity.Party
+import net.corda.core.internal.dataVending.FetchAttachmentsFlow
+import net.corda.core.internal.dataVending.FetchDataFlow
 import net.corda.core.messaging.SingleMessageRecipient
 import net.corda.core.node.services.ServiceInfo
-import net.corda.flows.FetchAttachmentsFlow
-import net.corda.flows.FetchDataFlow
 import net.corda.flows.SendTransactionFlow
 import net.corda.node.services.config.NodeConfiguration
 import net.corda.node.services.database.RequeryConfiguration

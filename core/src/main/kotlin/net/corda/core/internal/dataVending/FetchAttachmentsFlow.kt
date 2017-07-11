@@ -1,4 +1,4 @@
-package net.corda.flows
+package net.corda.core.internal.dataVending
 
 import net.corda.core.contracts.AbstractAttachment
 import net.corda.core.contracts.Attachment

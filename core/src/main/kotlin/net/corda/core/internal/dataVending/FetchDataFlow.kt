@@ -1,4 +1,4 @@
-package net.corda.flows
+package net.corda.core.internal.dataVending
 
 import co.paralleluniverse.fibers.Suspendable
 import net.corda.core.contracts.NamedByHash
@@ -6,11 +6,11 @@ import net.corda.core.crypto.SecureHash
 import net.corda.core.flows.FlowException
 import net.corda.core.flows.FlowLogic
 import net.corda.core.identity.Party
+import net.corda.core.internal.dataVending.FetchDataFlow.DownloadedVsRequestedDataMismatch
+import net.corda.core.internal.dataVending.FetchDataFlow.HashNotFound
 import net.corda.core.serialization.CordaSerializable
 import net.corda.core.utilities.UntrustworthyData
 import net.corda.core.utilities.unwrap
-import net.corda.flows.FetchDataFlow.DownloadedVsRequestedDataMismatch
-import net.corda.flows.FetchDataFlow.HashNotFound
 import java.util.*
 
 /**
@@ -69,7 +69,7 @@ abstract class FetchDataFlow<T : NamedByHash, in W : Any>(
             Result(fromDisk, downloaded)
         }
 
-        if(sendEndRequest){
+        if (sendEndRequest) {
             send(otherSide, EndDataRequest())
         }
         return result

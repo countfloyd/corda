@@ -5,6 +5,10 @@ import net.corda.core.crypto.SecureHash
 import net.corda.core.flows.FlowLogic
 import net.corda.core.getOrThrow
 import net.corda.core.identity.Party
+import net.corda.core.internal.dataVending.EndDataRequest
+import net.corda.core.internal.dataVending.FetchAttachmentsFlow
+import net.corda.core.internal.dataVending.FetchDataFlow
+import net.corda.core.internal.dataVending.FetchTransactionsFlow
 import net.corda.core.serialization.CordaSerializable
 import net.corda.core.transactions.LedgerTransaction
 import net.corda.core.transactions.SignedTransaction
@@ -15,6 +19,8 @@ import kotlin.collections.LinkedHashSet
 // TODO: It may be a clearer API if we make the primary c'tor private here, and only allow a single tx to be "resolved".
 
 /**
+ * The [ResolveTransactionsFlow] corresponds to the [SendTransactionFlow].
+ *
  * This flow is used to verify the validity of a transaction by recursively checking the validity of all the
  * dependencies. Once a transaction is checked it's inserted into local storage so it can be relayed and won't be
  * checked again.
