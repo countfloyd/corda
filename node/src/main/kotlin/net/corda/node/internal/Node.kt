@@ -2,7 +2,9 @@ package net.corda.node.internal
 
 import com.codahale.metrics.JmxReporter
 import net.corda.core.*
-import net.corda.core.concurrent.*
+import net.corda.core.concurrent.CordaFuture
+import net.corda.core.concurrent.doneFuture
+import net.corda.core.concurrent.openFuture
 import net.corda.core.messaging.RPCOps
 import net.corda.core.node.ServiceHub
 import net.corda.core.node.services.ServiceInfo
@@ -289,7 +291,8 @@ open class Node(override val configuration: FullNodeConfiguration,
         super.initialiseDatabasePersistence(insideTransaction)
     }
 
-    val startupComplete = openFuture<Unit>()
+    private val _startupComplete = openFuture<Unit>()
+    val startupComplete: CordaFuture<Unit> get() = _startupComplete
 
     override fun start(): Node {
         super.start()
@@ -314,7 +317,7 @@ open class Node(override val configuration: FullNodeConfiguration,
                         build().
                         start()
 
-                (startupComplete as OpenFuture<Unit>).set(Unit)
+                _startupComplete.set(Unit)
             }
         }, {})
         shutdownHook = addShutdownHook {
