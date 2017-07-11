@@ -9,13 +9,14 @@ import net.corda.core.identity.Party
 import net.corda.core.serialization.SerializationToken
 import net.corda.core.serialization.SerializeAsToken
 import net.corda.core.serialization.SerializeAsTokenContext
+import net.corda.core.utilities.NonEmptySet
 
 /**
  * Given a set of hashes either loads from from local storage  or requests them from the other peer. Downloaded
  * attachments are saved to local storage automatically.
  */
 @InitiatingFlow
-class FetchAttachmentsFlow(requests: Set<SecureHash>,
+class FetchAttachmentsFlow(requests: NonEmptySet<SecureHash>,
                            otherSide: Party) : FetchDataFlow<Attachment, ByteArray>(requests, otherSide) {
 
     override fun load(txid: SecureHash): Attachment? = serviceHub.attachments.openAttachment(txid)

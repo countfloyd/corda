@@ -12,6 +12,7 @@ import net.corda.core.seconds
 import net.corda.core.serialization.CordaSerializable
 import net.corda.core.transactions.SignedTransaction
 import net.corda.core.transactions.TransactionBuilder
+import net.corda.core.utilities.NonEmptySet
 import net.corda.core.utilities.ProgressTracker
 import net.corda.core.utilities.unwrap
 import java.security.PublicKey
@@ -165,7 +166,7 @@ object TwoPartyTradeFlow {
 
                 // Check that the state being sold to us is in a valid chain of transactions, i.e. that the
                 // seller has a valid chain of custody proving that they own the thing they're selling.
-                subFlow(ResolveTransactionsFlow(setOf(it.assetForSale.ref.txhash), otherParty))
+                subFlow(ResolveTransactionsFlow(NonEmptySet.of(it.assetForSale.ref.txhash), otherParty))
 
                 return it
             }

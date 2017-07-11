@@ -7,6 +7,7 @@ import net.corda.core.flows.FlowException
 import net.corda.core.flows.FlowLogic
 import net.corda.core.identity.Party
 import net.corda.core.serialization.CordaSerializable
+import net.corda.core.utilities.NonEmptySet
 import net.corda.core.utilities.UntrustworthyData
 import net.corda.core.utilities.unwrap
 import net.corda.flows.FetchDataFlow.DownloadedVsRequestedDataMismatch
@@ -30,7 +31,7 @@ import java.util.*
  * @param W The wire type of the data being fetched, for when it isn't the same as the ultimate type.
  */
 abstract class FetchDataFlow<T : NamedByHash, in W : Any>(
-        protected val requests: Set<SecureHash>,
+        protected val requests: NonEmptySet<SecureHash>,
         protected val otherSide: Party) : FlowLogic<FetchDataFlow.Result<T>>() {
 
     @CordaSerializable

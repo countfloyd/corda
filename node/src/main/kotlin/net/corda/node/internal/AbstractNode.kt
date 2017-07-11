@@ -24,6 +24,7 @@ import net.corda.core.serialization.SingletonSerializeAsToken
 import net.corda.core.serialization.deserialize
 import net.corda.core.transactions.SignedTransaction
 import net.corda.core.utilities.NetworkHostAndPort
+import net.corda.core.utilities.NonEmptySet
 import net.corda.core.utilities.debug
 import net.corda.flows.*
 import net.corda.node.services.*
@@ -494,7 +495,7 @@ abstract class AbstractNode(open val configuration: NodeConfiguration,
     private fun makeInfo(): NodeInfo {
         val advertisedServiceEntries = makeServiceEntries()
         val legalIdentity = obtainLegalIdentity()
-        val allIdentitiesSet = advertisedServiceEntries.map { it.identity }.toSet() + legalIdentity
+        val allIdentitiesSet = NonEmptySet.copyOf(advertisedServiceEntries.map { it.identity } + legalIdentity)
         val addresses = myAddresses() // TODO There is no support for multiple IP addresses yet.
         return NodeInfo(addresses, legalIdentity, allIdentitiesSet, platformVersion, advertisedServiceEntries, findMyLocation())
     }

@@ -2,22 +2,18 @@ package net.corda.node.services.vault
 
 import net.corda.contracts.asset.Cash
 import net.corda.contracts.asset.DUMMY_CASH_ISSUER
-import net.corda.testing.contracts.fillWithSomeTestCash
 import net.corda.core.contracts.*
 import net.corda.core.identity.AnonymousParty
 import net.corda.core.node.services.StatesNotAvailableException
 import net.corda.core.node.services.VaultService
 import net.corda.core.node.services.unconsumedStates
-import net.corda.core.utilities.OpaqueBytes
 import net.corda.core.transactions.SignedTransaction
-import net.corda.testing.DUMMY_NOTARY
-import net.corda.testing.LogHelper
+import net.corda.core.utilities.NonEmptySet
+import net.corda.core.utilities.OpaqueBytes
 import net.corda.node.utilities.configureDatabase
 import net.corda.node.utilities.transaction
-import net.corda.testing.BOC
-import net.corda.testing.BOC_KEY
-import net.corda.testing.MEGA_CORP
-import net.corda.testing.MEGA_CORP_KEY
+import net.corda.testing.*
+import net.corda.testing.contracts.fillWithSomeTestCash
 import net.corda.testing.node.MockServices
 import net.corda.testing.node.makeTestDataSourceProperties
 import org.assertj.core.api.Assertions.assertThat
@@ -116,7 +112,7 @@ class NodeVaultServiceTest {
             val unconsumedStates = vaultSvc.unconsumedStates<Cash.State>().toList()
             assertThat(unconsumedStates).hasSize(3)
 
-            val stateRefsToSoftLock = setOf(unconsumedStates[1].ref, unconsumedStates[2].ref)
+            val stateRefsToSoftLock = NonEmptySet.of(unconsumedStates[1].ref, unconsumedStates[2].ref)
 
             // soft lock two of the three states
             val softLockId = UUID.randomUUID()
@@ -132,7 +128,7 @@ class NodeVaultServiceTest {
             assertThat(unlockedStates1).hasSize(1)
 
             // soft lock release one of the states explicitly
-            vaultSvc.softLockRelease(softLockId, setOf(unconsumedStates[1].ref))
+            vaultSvc.softLockRelease(softLockId, NonEmptySet.of(unconsumedStates[1].ref))
             val unlockedStates2 = vaultSvc.unconsumedStates<Cash.State>(includeSoftLockedStates = false).toList()
             assertThat(unlockedStates2).hasSize(2)
 
@@ -160,7 +156,7 @@ class NodeVaultServiceTest {
                     assertNull(vaultSvc.cashBalances[USD])
                     services.fillWithSomeTestCash(100.DOLLARS, DUMMY_NOTARY, 3, 3, Random(0L))
                 }
-        val stateRefsToSoftLock = vaultStates.states.map { it.ref }.toSet()
+        val stateRefsToSoftLock = NonEmptySet.copyOf(vaultStates.states.map { it.ref })
         println("State Refs:: $stateRefsToSoftLock")
 
         // 1st tx locks states
@@ -216,19 +212,19 @@ class NodeVaultServiceTest {
                     assertNull(vaultSvc.cashBalances[USD])
                     services.fillWithSomeTestCash(100.DOLLARS, DUMMY_NOTARY, 3, 3, Random(0L))
                 }
-        val stateRefsToSoftLock = vaultStates.states.map { it.ref }.toSet()
+        val stateRefsToSoftLock = vaultStates.states.map { it.ref }
         println("State Refs:: $stateRefsToSoftLock")
 
         // lock 1st state with LockId1
         database.transaction {
-            vaultSvc.softLockReserve(softLockId1, setOf(stateRefsToSoftLock.first()))
+            vaultSvc.softLockReserve(softLockId1, NonEmptySet.of(stateRefsToSoftLock.first()))
             assertThat(vaultSvc.softLockedStates<Cash.State>(softLockId1)).hasSize(1)
         }
 
         // attempt to lock all 3 states with LockId2
         database.transaction {
             assertThatExceptionOfType(StatesNotAvailableException::class.java).isThrownBy(
-                    { vaultSvc.softLockReserve(softLockId2, stateRefsToSoftLock) }
+                    { vaultSvc.softLockReserve(softLockId2, NonEmptySet.copyOf(stateRefsToSoftLock)) }
             ).withMessageContaining("only 2 rows available").withNoCause()
         }
     }
@@ -243,7 +239,7 @@ class NodeVaultServiceTest {
                     assertNull(vaultSvc.cashBalances[USD])
                     services.fillWithSomeTestCash(100.DOLLARS, DUMMY_NOTARY, 3, 3, Random(0L))
                 }
-        val stateRefsToSoftLock = vaultStates.states.map { it.ref }.toSet()
+        val stateRefsToSoftLock = NonEmptySet.copyOf(vaultStates.states.map { it.ref })
         println("State Refs:: $stateRefsToSoftLock")
 
         // lock states with LockId1
@@ -269,18 +265,18 @@ class NodeVaultServiceTest {
                     assertNull(vaultSvc.cashBalances[USD])
                     services.fillWithSomeTestCash(100.DOLLARS, DUMMY_NOTARY, 3, 3, Random(0L))
                 }
-        val stateRefsToSoftLock = vaultStates.states.map { it.ref }.toSet()
+        val stateRefsToSoftLock = vaultStates.states.map { it.ref }
         println("State Refs:: $stateRefsToSoftLock")
 
         // lock states with LockId1
         database.transaction {
-            vaultSvc.softLockReserve(softLockId1, setOf(stateRefsToSoftLock.first()))
+            vaultSvc.softLockReserve(softLockId1, NonEmptySet.of(stateRefsToSoftLock.first()))
             assertThat(vaultSvc.softLockedStates<Cash.State>(softLockId1)).hasSize(1)
         }
 
         // attempt to lock all states with LockId1 (including previously already locked one)
         database.transaction {
-            vaultSvc.softLockReserve(softLockId1, stateRefsToSoftLock)
+            vaultSvc.softLockReserve(softLockId1, NonEmptySet.copyOf(stateRefsToSoftLock))
             assertThat(vaultSvc.softLockedStates<Cash.State>(softLockId1)).hasSize(3)
         }
     }

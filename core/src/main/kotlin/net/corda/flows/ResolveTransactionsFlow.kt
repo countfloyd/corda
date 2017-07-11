@@ -10,6 +10,7 @@ import net.corda.core.serialization.CordaSerializable
 import net.corda.core.transactions.LedgerTransaction
 import net.corda.core.transactions.SignedTransaction
 import net.corda.core.transactions.WireTransaction
+import net.corda.core.utilities.NonEmptySet
 import java.util.*
 
 // TODO: This code is currently unit tested by TwoPartyTradeFlowTests, it should have its own tests.
@@ -29,11 +30,11 @@ import java.util.*
  *
  * The flow returns a list of verified [LedgerTransaction] objects, in a depth-first order.
  */
-class ResolveTransactionsFlow(private val txHashes: Set<SecureHash>,
+class ResolveTransactionsFlow(private val txHashes: NonEmptySet<SecureHash>,
                               private val otherSide: Party) : FlowLogic<List<LedgerTransaction>>() {
 
     companion object {
-        private fun dependencyIDs(wtx: WireTransaction) = wtx.inputs.map { it.txhash }.toSet()
+        private fun dependencyIDs(wtx: WireTransaction) = NonEmptySet.copyOf(wtx.inputs.map { it.txhash })
 
         /**
          * Topologically sorts the given transactions such that dependencies are listed before dependers. */
@@ -159,14 +160,14 @@ class ResolveTransactionsFlow(private val txHashes: Set<SecureHash>,
         while (nextRequests.isNotEmpty()) {
             // Don't re-download the same tx when we haven't verified it yet but it's referenced multiple times in the
             // graph we're traversing.
-            val notAlreadyFetched = nextRequests.filterNot { it in resultQ }.toSet()
+            val notAlreadyFetched = nextRequests.filterNot { it in resultQ }
             nextRequests.clear()
 
             if (notAlreadyFetched.isEmpty())   // Done early.
                 break
 
             // Request the standalone transaction data (which may refer to things we don't yet have).
-            val downloads: List<SignedTransaction> = subFlow(FetchTransactionsFlow(notAlreadyFetched, otherSide)).downloaded
+            val downloads: List<SignedTransaction> = subFlow(FetchTransactionsFlow(NonEmptySet.copyOf(notAlreadyFetched), otherSide)).downloaded
 
             fetchMissingAttachments(downloads.map { it.tx })
 
@@ -196,6 +197,6 @@ class ResolveTransactionsFlow(private val txHashes: Set<SecureHash>,
             wtx.attachments.filter { serviceHub.attachments.openAttachment(it) == null }
         }
         if (missingAttachments.isNotEmpty())
-            subFlow(FetchAttachmentsFlow(missingAttachments.toSet(), otherSide))
+            subFlow(FetchAttachmentsFlow(NonEmptySet.copyOf(missingAttachments), otherSide))
     }
 }

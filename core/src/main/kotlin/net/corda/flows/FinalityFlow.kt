@@ -10,6 +10,7 @@ import net.corda.core.identity.Party
 import net.corda.core.node.ServiceHub
 import net.corda.core.transactions.LedgerTransaction
 import net.corda.core.transactions.SignedTransaction
+import net.corda.core.utilities.NonEmptySet
 import net.corda.core.utilities.ProgressTracker
 
 /**
@@ -65,7 +66,7 @@ class FinalityFlow(val transactions: Iterable<SignedTransaction>,
         progressTracker.currentStep = BROADCASTING
         val me = serviceHub.myInfo.legalIdentity
         for ((stx, parties) in notarisedTxns) {
-            subFlow(BroadcastTransactionFlow(stx, parties + extraRecipients - me))
+            subFlow(BroadcastTransactionFlow(stx, NonEmptySet.copyOf(parties + extraRecipients - me)))
         }
         return notarisedTxns.map { it.first }
     }

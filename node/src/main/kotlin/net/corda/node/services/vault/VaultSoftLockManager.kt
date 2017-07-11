@@ -4,6 +4,7 @@ import net.corda.core.contracts.StateRef
 import net.corda.core.flows.FlowLogic
 import net.corda.core.flows.StateMachineRunId
 import net.corda.core.node.services.VaultService
+import net.corda.core.utilities.NonEmptySet
 import net.corda.core.utilities.loggerFor
 import net.corda.core.utilities.trace
 import net.corda.node.services.statemachine.FlowStateMachineImpl
@@ -36,18 +37,18 @@ class VaultSoftLockManager(val vault: VaultService, smm: StateMachineManager) {
         //  However, the lock can be programmatically released, like any other soft lock,
         //  should we want a long running flow that creates a visible state mid way through.
 
-        vault.rawUpdates.subscribe { update ->
-            update.flowId?.let {
-                if (update.produced.isNotEmpty()) {
-                    registerSoftLocks(update.flowId as UUID, update.produced.map { it.ref })
+        vault.rawUpdates.subscribe { (_, produced, flowId) ->
+            flowId?.let {
+                if (produced.isNotEmpty()) {
+                    registerSoftLocks(flowId, NonEmptySet.copyOf(produced.map { it.ref }))
                 }
             }
         }
     }
 
-    private fun registerSoftLocks(flowId: UUID, stateRefs: List<StateRef>) {
+    private fun registerSoftLocks(flowId: UUID, stateRefs: NonEmptySet<StateRef>) {
         log.trace("Reserving soft locks for flow id $flowId and states $stateRefs")
-        vault.softLockReserve(flowId, stateRefs.toSet())
+        vault.softLockReserve(flowId, stateRefs)
     }
 
     private fun unregisterSoftLocks(id: StateMachineRunId, logic: FlowLogic<*>) {

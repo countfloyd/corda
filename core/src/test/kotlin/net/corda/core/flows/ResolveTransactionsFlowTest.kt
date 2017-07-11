@@ -1,17 +1,18 @@
 package net.corda.core.flows
 
-import net.corda.testing.contracts.DummyContract
 import net.corda.core.crypto.SecureHash
 import net.corda.core.getOrThrow
 import net.corda.core.identity.Party
-import net.corda.core.utilities.opaque
 import net.corda.core.transactions.SignedTransaction
-import net.corda.testing.DUMMY_NOTARY_KEY
+import net.corda.core.utilities.NonEmptySet
+import net.corda.core.utilities.opaque
 import net.corda.flows.ResolveTransactionsFlow
 import net.corda.node.utilities.transaction
+import net.corda.testing.DUMMY_NOTARY_KEY
 import net.corda.testing.MEGA_CORP
 import net.corda.testing.MEGA_CORP_KEY
 import net.corda.testing.MINI_CORP
+import net.corda.testing.contracts.DummyContract
 import net.corda.testing.node.MockNetwork
 import net.corda.testing.node.MockServices
 import org.junit.After
@@ -54,7 +55,7 @@ class ResolveTransactionsFlowTest {
     @Test
     fun `resolve from two hashes`() {
         val (stx1, stx2) = makeTransactions()
-        val p = ResolveTransactionsFlow(setOf(stx2.id), a.info.legalIdentity)
+        val p = ResolveTransactionsFlow(NonEmptySet.of(stx2.id), a.info.legalIdentity)
         val future = b.services.startFlow(p).resultFuture
         mockNet.runNetwork()
         val results = future.getOrThrow()
@@ -69,7 +70,7 @@ class ResolveTransactionsFlowTest {
     @Test
     fun `dependency with an error`() {
         val stx = makeTransactions(signFirstTX = false).second
-        val p = ResolveTransactionsFlow(setOf(stx.id), a.info.legalIdentity)
+        val p = ResolveTransactionsFlow(NonEmptySet.of(stx.id), a.info.legalIdentity)
         val future = b.services.startFlow(p).resultFuture
         mockNet.runNetwork()
         assertFailsWith(SignatureException::class) { future.getOrThrow() }
@@ -103,7 +104,7 @@ class ResolveTransactionsFlowTest {
             }
             cursor = stx
         }
-        val p = ResolveTransactionsFlow(setOf(cursor.id), a.info.legalIdentity)
+        val p = ResolveTransactionsFlow(NonEmptySet.of(cursor.id), a.info.legalIdentity)
         p.transactionCountLimit = 40
         val future = b.services.startFlow(p).resultFuture
         mockNet.runNetwork()
@@ -128,7 +129,7 @@ class ResolveTransactionsFlowTest {
             a.services.recordTransactions(stx2, stx3)
         }
 
-        val p = ResolveTransactionsFlow(setOf(stx3.id), a.info.legalIdentity)
+        val p = ResolveTransactionsFlow(NonEmptySet.of(stx3.id), a.info.legalIdentity)
         val future = b.services.startFlow(p).resultFuture
         mockNet.runNetwork()
         future.getOrThrow()

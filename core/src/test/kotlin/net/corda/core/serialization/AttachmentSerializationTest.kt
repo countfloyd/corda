@@ -10,6 +10,7 @@ import net.corda.core.identity.Party
 import net.corda.core.messaging.RPCOps
 import net.corda.core.messaging.SingleMessageRecipient
 import net.corda.core.node.services.ServiceInfo
+import net.corda.core.utilities.NonEmptySet
 import net.corda.core.utilities.unwrap
 import net.corda.flows.FetchAttachmentsFlow
 import net.corda.node.internal.InitiatedFlowFactory
@@ -134,7 +135,7 @@ class AttachmentSerializationTest {
     private class FetchAttachmentLogic(server: MockNetwork.MockNode, private val attachmentId: SecureHash) : ClientLogic(server) {
         @Suspendable
         override fun getAttachmentContent(): String {
-            val (downloadedAttachment) = subFlow(FetchAttachmentsFlow(setOf(attachmentId), server)).downloaded
+            val (downloadedAttachment) = subFlow(FetchAttachmentsFlow(NonEmptySet.of(attachmentId), server)).downloaded
             communicate()
             return downloadedAttachment.extractContent()
         }

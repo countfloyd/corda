@@ -4,6 +4,7 @@ import net.corda.core.crypto.SecureHash
 import net.corda.core.flows.FlowException
 import net.corda.core.identity.Party
 import net.corda.core.serialization.CordaSerializable
+import net.corda.core.utilities.NonEmptySet
 import java.security.PublicKey
 import java.util.*
 
@@ -100,27 +101,18 @@ class AttachmentResolutionException(val hash: SecureHash) : FlowException() {
     override fun toString(): String = "Attachment resolution failure for $hash"
 }
 
-sealed class TransactionVerificationException(val txId: SecureHash, cause: Throwable?) : FlowException(cause) {
-    class ContractRejection(txId: SecureHash, val contract: Contract, cause: Throwable?) : TransactionVerificationException(txId, cause)
-    class MoreThanOneNotary(txId: SecureHash) : TransactionVerificationException(txId, null)
-    class SignersMissing(txId: SecureHash, val missing: List<PublicKey>) : TransactionVerificationException(txId, null) {
-        override fun toString(): String = "Signers missing: ${missing.joinToString()}"
-    }
-
-    class DuplicateInputStates(txId: SecureHash, val duplicates: Set<StateRef>) : TransactionVerificationException(txId, null) {
-        override fun toString(): String = "Duplicate inputs: ${duplicates.joinToString()}"
-    }
-
-    class InvalidNotaryChange(txId: SecureHash) : TransactionVerificationException(txId, null)
-    class NotaryChangeInWrongTransactionType(txId: SecureHash, val txNotary: Party, val outputNotary: Party) : TransactionVerificationException(txId, null) {
-        override fun toString(): String {
-            return "Found unexpected notary change in transaction. Tx notary: $txNotary, found: $outputNotary"
-        }
-    }
-
-    class TransactionMissingEncumbranceException(txId: SecureHash, val missing: Int, val inOut: Direction) : TransactionVerificationException(txId, null) {
-        override val message: String get() = "Missing required encumbrance $missing in $inOut"
-    }
+sealed class TransactionVerificationException(val txId: SecureHash, message: String? = null, cause: Throwable? = null) : FlowException(message, cause) {
+    class ContractRejection(txId: SecureHash, val contract: Contract, cause: Throwable?) : TransactionVerificationException(txId, cause = cause)
+    class MoreThanOneNotary(txId: SecureHash) : TransactionVerificationException(txId)
+    class SignersMissing(txId: SecureHash, val missing: List<PublicKey>)
+        : TransactionVerificationException(txId, "Signers missing: ${missing.joinToString()}")
+    class DuplicateInputStates(txId: SecureHash, val duplicates: NonEmptySet<StateRef>)
+        : TransactionVerificationException(txId, "Duplicate inputs: ${duplicates.joinToString()}")
+    class InvalidNotaryChange(txId: SecureHash) : TransactionVerificationException(txId)
+    class NotaryChangeInWrongTransactionType(txId: SecureHash, val txNotary: Party, val outputNotary: Party)
+        : TransactionVerificationException(txId, "Found unexpected notary change in transaction. Tx notary: $txNotary, found: $outputNotary")
+    class TransactionMissingEncumbranceException(txId: SecureHash, val missing: Int, val inOut: Direction)
+        : TransactionVerificationException(txId, "Missing required encumbrance $missing in $inOut")
 
     @CordaSerializable
     enum class Direction {

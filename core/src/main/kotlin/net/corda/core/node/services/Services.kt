@@ -16,11 +16,12 @@ import net.corda.core.node.services.vault.PageSpecification
 import net.corda.core.node.services.vault.QueryCriteria
 import net.corda.core.node.services.vault.Sort
 import net.corda.core.serialization.CordaSerializable
-import net.corda.core.utilities.OpaqueBytes
 import net.corda.core.toFuture
 import net.corda.core.transactions.LedgerTransaction
 import net.corda.core.transactions.TransactionBuilder
 import net.corda.core.transactions.WireTransaction
+import net.corda.core.utilities.NonEmptySet
+import net.corda.core.utilities.OpaqueBytes
 import net.corda.flows.AnonymisedIdentity
 import rx.Observable
 import rx.subjects.PublishSubject
@@ -296,7 +297,7 @@ interface VaultService {
      * @throws [StatesNotAvailableException] when not possible to softLock all of requested [StateRef]
      */
     @Throws(StatesNotAvailableException::class)
-    fun softLockReserve(lockId: UUID, stateRefs: Set<StateRef>)
+    fun softLockReserve(lockId: UUID, stateRefs: NonEmptySet<StateRef>)
 
     /**
      * Release all or an explicitly specified set of [StateRef] for a given [UUID] unique identifier.
@@ -305,7 +306,7 @@ interface VaultService {
      * In the case of coin selection, softLock are automatically released once previously gathered unconsumed input refs
      * are consumed as part of cash spending.
      */
-    fun softLockRelease(lockId: UUID, stateRefs: Set<StateRef>? = null)
+    fun softLockRelease(lockId: UUID, stateRefs: NonEmptySet<StateRef>? = null)
 
     /**
      * Retrieve softLockStates for a given [UUID] or return all softLockStates in vault for a given
@@ -320,7 +321,11 @@ interface VaultService {
      * is implemented in a separate module (finance) and requires access to it.
      */
     @Suspendable
-    fun <T : ContractState> unconsumedStatesForSpending(amount: Amount<Currency>, onlyFromIssuerParties: Set<AbstractParty>? = null, notary: Party? = null, lockId: UUID, withIssuerRefs: Set<OpaqueBytes>? = null): List<StateAndRef<T>>
+    fun <T : ContractState> unconsumedStatesForSpending(amount: Amount<Currency>,
+                                                        onlyFromIssuerParties: Set<AbstractParty>? = null,
+                                                        notary: Party? = null,
+                                                        lockId: UUID,
+                                                        withIssuerRefs: Set<OpaqueBytes>? = null): List<StateAndRef<T>>
 }
 
 // TODO: Remove this from the interface

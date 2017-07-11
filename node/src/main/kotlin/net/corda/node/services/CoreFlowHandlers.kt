@@ -10,6 +10,7 @@ import net.corda.core.flows.FlowException
 import net.corda.core.flows.FlowLogic
 import net.corda.core.identity.Party
 import net.corda.core.transactions.SignedTransaction
+import net.corda.core.utilities.NonEmptySet
 import net.corda.core.utilities.ProgressTracker
 import net.corda.core.utilities.unwrap
 import net.corda.flows.*
@@ -108,7 +109,7 @@ class ContractUpgradeHandler(otherSide: Party) : AbstractStateReplacementFlow.Ac
     override fun verifyProposal(proposal: AbstractStateReplacementFlow.Proposal<Class<out UpgradedContract<ContractState, *>>>) {
         // Retrieve signed transaction from our side, we will apply the upgrade logic to the transaction on our side, and
         // verify outputs matches the proposed upgrade.
-        val stx = subFlow(FetchTransactionsFlow(setOf(proposal.stateRef.txhash), otherSide)).fromDisk.singleOrNull()
+        val stx = subFlow(FetchTransactionsFlow(NonEmptySet.of(proposal.stateRef.txhash), otherSide)).fromDisk.singleOrNull()
         requireNotNull(stx) { "We don't have a copy of the referenced state" }
         val oldStateAndRef = stx!!.tx.outRef<ContractState>(proposal.stateRef.index)
         val authorisedUpgrade = serviceHub.vaultService.getAuthorisedContractUpgrade(oldStateAndRef.ref) ?:
@@ -124,8 +125,7 @@ class ContractUpgradeHandler(otherSide: Party) : AbstractStateReplacementFlow.Ac
     }
 }
 
-class TransactionKeyHandler(val otherSide: Party, val revocationEnabled: Boolean) : FlowLogic<Unit>() {
-    constructor(otherSide: Party) : this(otherSide, false)
+class TransactionKeyHandler(val otherSide: Party) : FlowLogic<Unit>() {
     companion object {
         object SENDING_KEY : ProgressTracker.Step("Sending key")
     }
@@ -137,8 +137,9 @@ class TransactionKeyHandler(val otherSide: Party, val revocationEnabled: Boolean
         val revocationEnabled = false
         progressTracker.currentStep = SENDING_KEY
         val legalIdentityAnonymous = serviceHub.keyManagementService.freshKeyAndCert(serviceHub.myInfo.legalIdentityAndCert, revocationEnabled)
-        val otherSideAnonymous = sendAndReceive<AnonymisedIdentity>(otherSide, legalIdentityAnonymous).unwrap { TransactionKeyFlow.validateIdentity(otherSide, it) }
-        val (certPath, theirCert, txIdentity) = otherSideAnonymous
+        val (certPath, _, txIdentity) = sendAndReceive<AnonymisedIdentity>(otherSide, legalIdentityAnonymous).unwrap {
+            TransactionKeyFlow.validateIdentity(otherSide, it)
+        }
         // Validate then store their identity so that we can prove the key in the transaction is owned by the
         // counterparty.
         serviceHub.identityService.registerAnonymousIdentity(txIdentity, otherSide, certPath)
