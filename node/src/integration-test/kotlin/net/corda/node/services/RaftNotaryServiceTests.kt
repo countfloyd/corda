@@ -13,7 +13,6 @@ import net.corda.flows.NotaryError
 import net.corda.flows.NotaryException
 import net.corda.flows.NotaryFlow
 import net.corda.node.internal.AbstractNode
-import net.corda.node.utilities.transaction
 import net.corda.testing.node.NodeBasedTest
 import org.bouncycastle.asn1.x500.X500Name
 import org.junit.Test

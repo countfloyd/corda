@@ -20,7 +20,6 @@ import net.corda.flows.ContractUpgradeFlow
 import net.corda.flows.FinalityFlow
 import net.corda.node.internal.CordaRPCOpsImpl
 import net.corda.node.services.startFlowPermission
-import net.corda.node.utilities.transaction
 import net.corda.nodeapi.User
 import net.corda.testing.RPCDriverExposedDSLInterface
 import net.corda.testing.node.MockNetwork

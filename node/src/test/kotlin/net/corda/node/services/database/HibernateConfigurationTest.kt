@@ -26,8 +26,8 @@ import net.corda.node.services.schema.NodeSchemaService
 import net.corda.node.services.vault.NodeVaultService
 import net.corda.node.services.vault.schemas.jpa.CommonSchemaV1
 import net.corda.node.services.vault.schemas.jpa.VaultSchemaV1
+import net.corda.node.utilities.CordaPersistence
 import net.corda.node.utilities.configureDatabase
-import net.corda.node.utilities.transaction
 import net.corda.schemas.CashSchemaV1
 import net.corda.schemas.SampleCashSchemaV2
 import net.corda.schemas.SampleCashSchemaV3
@@ -39,11 +39,9 @@ import net.corda.testing.node.makeTestDataSourceProperties
 import org.assertj.core.api.Assertions
 import org.assertj.core.api.Assertions.assertThat
 import org.hibernate.SessionFactory
-import org.jetbrains.exposed.sql.Database
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
-import java.io.Closeable
 import java.time.Instant
 import java.util.*
 import javax.persistence.EntityManager
@@ -53,8 +51,7 @@ import javax.persistence.criteria.CriteriaBuilder
 class HibernateConfigurationTest {
 
     lateinit var services: MockServices
-    lateinit var dataSource: Closeable
-    lateinit var database: Database
+    lateinit var database: CordaPersistence
     val vault: VaultService get() = services.vaultService
 
     // Hibernate configuration objects
@@ -70,11 +67,9 @@ class HibernateConfigurationTest {
     @Before
     fun setUp() {
         val dataSourceProps = makeTestDataSourceProperties()
-        val dataSourceAndDatabase = configureDatabase(dataSourceProps)
+        database = configureDatabase(dataSourceProps)
         val customSchemas = setOf(VaultSchemaV1, CashSchemaV1, SampleCashSchemaV2, SampleCashSchemaV3)
 
-        dataSource = dataSourceAndDatabase.first
-        database = dataSourceAndDatabase.second
         database.transaction {
 
             hibernateConfig = HibernateConfiguration(NodeSchemaService(customSchemas))
@@ -104,7 +99,7 @@ class HibernateConfigurationTest {
 
     @After
     fun cleanUp() {
-        dataSource.close()
+        database.close()
     }
 
     private fun setUpDb() {

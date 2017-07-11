@@ -37,7 +37,6 @@ import net.corda.flows.NotaryFlow
 import net.corda.node.internal.InitiatedFlowFactory
 import net.corda.node.services.persistence.checkpoints
 import net.corda.node.services.transactions.ValidatingNotaryService
-import net.corda.node.utilities.transaction
 import net.corda.testing.expect
 import net.corda.testing.expectEvents
 import net.corda.testing.getTestX509Name
@@ -96,6 +95,7 @@ class FlowFrameworkTests {
     @After
     fun cleanUp() {
         mockNet.stopNodes()
+        sessionTransfers.clear()
     }
 
     @Test
@@ -216,6 +216,7 @@ class FlowFrameworkTests {
         node2.disableDBCloseOnStop()
         // Restart node and thus reload the checkpoint and resend the message with same UUID
         node2.stop()
+        println("sessionTransfers A  ${sessionTransfers.size} ")
         node2.database.transaction {
             assertEquals(1, node2.checkpointStorage.checkpoints().size) // confirm checkpoint
         }
@@ -226,7 +227,8 @@ class FlowFrameworkTests {
         mockNet.runNetwork()
         node2b.smm.executor.flush()
         fut1.getOrThrow()
-
+        println("sessionTransfers B ${sessionTransfers.size} ")
+        println("sentCount B ${sentCount} ")
         val receivedCount = sessionTransfers.count { it.isPayloadTransfer }
         // Check flows completed cleanly and didn't get out of phase
         assertEquals(4, receivedCount, "Flow should have exchanged 4 unique messages")// Two messages each way

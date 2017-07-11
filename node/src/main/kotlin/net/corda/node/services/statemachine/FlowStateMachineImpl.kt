@@ -23,8 +23,6 @@ import net.corda.node.services.api.FlowAppAuditEvent
 import net.corda.node.services.api.FlowPermissionAuditEvent
 import net.corda.node.services.api.ServiceHubInternal
 import net.corda.node.utilities.*
-import org.jetbrains.exposed.sql.Transaction
-import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.sql.Connection
@@ -55,12 +53,12 @@ class FlowStateMachineImpl<R>(override val id: StateMachineRunId,
         @Suspendable
         inline fun sleep(millis: Long) {
             if (currentStateMachine() != null) {
-                val db = StrandLocalTransactionManager.database
-                TransactionManager.current().commit()
-                TransactionManager.current().close()
+                val db = DatabaseTransactionManager.dataSource
+                DatabaseTransactionManager.current().commit()
+                DatabaseTransactionManager.current().close()
                 Strand.sleep(millis)
-                StrandLocalTransactionManager.database = db
-                TransactionManager.manager.newTransaction(Connection.TRANSACTION_REPEATABLE_READ)
+                DatabaseTransactionManager.dataSource = db
+                DatabaseTransactionManager.newTransaction(Connection.TRANSACTION_REPEATABLE_READ)
             } else Strand.sleep(millis)
         }
     }
@@ -71,10 +69,9 @@ class FlowStateMachineImpl<R>(override val id: StateMachineRunId,
     @Transient internal lateinit var actionOnSuspend: (FlowIORequest) -> Unit
     @Transient internal lateinit var actionOnEnd: (ErrorOr<R>, Boolean) -> Unit
     @Transient internal var fromCheckpoint: Boolean = false
-    @Transient private var txTrampoline: Transaction? = null
-    @Transient private var cordaTxTrampoline: CordaTransaction? = null
+    @Transient private var txTrampoline: DatabaseTransaction? = null
 
-    /**
+     /**
      * Return the logger for this state machine. The logger name incorporates [id] and so including it in the log message
      * is not necessary.
      */
@@ -133,7 +130,7 @@ class FlowStateMachineImpl<R>(override val id: StateMachineRunId,
     private fun createTransaction() {
         // Make sure we have a database transaction
         database.createTransaction()
-        logger.trace { "Starting database transaction ${TransactionManager.currentOrNull()} on ${Strand.currentStrand()}" }
+        logger.trace { "Starting database transaction ${DatabaseTransactionManager.currentOrNull()} on ${Strand.currentStrand()}" }
     }
 
     private fun processException(exception: Throwable, propagated: Boolean) {
@@ -143,7 +140,7 @@ class FlowStateMachineImpl<R>(override val id: StateMachineRunId,
     }
 
     internal fun commitTransaction() {
-        val transaction = TransactionManager.current()
+        val transaction = DatabaseTransactionManager.current()
         try {
             logger.trace { "Committing database transaction $transaction on ${Strand.currentStrand()}." }
             transaction.commit()
@@ -386,10 +383,7 @@ class FlowStateMachineImpl<R>(override val id: StateMachineRunId,
     private fun suspend(ioRequest: FlowIORequest) {
         // We have to pass the thread local database transaction across via a transient field as the fiber park
         // swaps them out.
-        txTrampoline = TransactionManager.currentOrNull()
-        StrandLocalTransactionManager.setThreadLocalTx(null)
-        cordaTxTrampoline = CordaTransactionManager.currentOrNull()
-        CordaTransactionManager.setThreadLocalTx(null)
+        txTrampoline =  DatabaseTransactionManager.setThreadLocalTx(null)
         if (ioRequest is WaitingRequest)
             waitingForResponse = ioRequest
 
@@ -398,10 +392,8 @@ class FlowStateMachineImpl<R>(override val id: StateMachineRunId,
             logger.trace { "Suspended on $ioRequest" }
             // restore the Tx onto the ThreadLocal so that we can commit the ensuing checkpoint to the DB
             try {
-                StrandLocalTransactionManager.setThreadLocalTx(txTrampoline)
+                DatabaseTransactionManager.setThreadLocalTx(txTrampoline)
                 txTrampoline = null
-                CordaTransactionManager.setThreadLocalTx(cordaTxTrampoline)
-                cordaTxTrampoline = null
                 actionOnSuspend(ioRequest)
             } catch (t: Throwable) {
                 // Quasar does not terminate the fiber properly if an exception occurs during a suspend. We have to

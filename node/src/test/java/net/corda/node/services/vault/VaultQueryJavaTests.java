@@ -1,10 +1,10 @@
 package net.corda.node.services.vault;
 
 import com.google.common.collect.ImmutableSet;
-import kotlin.Pair;
 import net.corda.contracts.DealState;
 import net.corda.contracts.asset.Cash;
 import net.corda.core.contracts.*;
+import net.corda.node.utilities.CordaPersistence;
 import net.corda.testing.contracts.DummyLinearContract;
 import net.corda.core.crypto.*;
 import net.corda.core.identity.AbstractParty;
@@ -29,13 +29,11 @@ import net.corda.testing.TestConstants;
 import net.corda.testing.contracts.VaultFiller;
 import net.corda.testing.node.MockServices;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.exposed.sql.Database;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import rx.Observable;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.*;
@@ -45,13 +43,12 @@ import java.util.stream.StreamSupport;
 
 import static net.corda.contracts.asset.CashKt.getDUMMY_CASH_ISSUER;
 import static net.corda.contracts.asset.CashKt.getDUMMY_CASH_ISSUER_KEY;
+import static net.corda.node.utilities.CordaPersistenceKt.configureDatabase;
 import static net.corda.testing.CoreTestUtils.getBOC;
 import static net.corda.testing.CoreTestUtils.getBOC_KEY;
 import static net.corda.testing.CoreTestUtils.getBOC_PUBKEY;
 import static net.corda.core.contracts.ContractsDSL.USD;
 import static net.corda.core.node.services.vault.QueryCriteriaUtils.MAX_PAGE_SIZE;
-import static net.corda.node.utilities.DatabaseSupportKt.configureDatabase;
-import static net.corda.node.utilities.DatabaseSupportKt.transaction;
 import static net.corda.testing.CoreTestUtils.getMEGA_CORP;
 import static net.corda.testing.CoreTestUtils.getMEGA_CORP_KEY;
 import static net.corda.testing.node.MockServicesKt.makeTestDataSourceProperties;
@@ -62,19 +59,16 @@ public class VaultQueryJavaTests {
     private MockServices services;
     private VaultService vaultSvc;
     private VaultQueryService vaultQuerySvc;
-    private Closeable dataSource;
-    private Database database;
+    private CordaPersistence database;
 
     @Before
     public void setUp() {
         Properties dataSourceProps = makeTestDataSourceProperties(SecureHash.randomSHA256().toString());
-        Pair<Closeable, Database> dataSourceAndDatabase = configureDatabase(dataSourceProps);
-        dataSource = dataSourceAndDatabase.getFirst();
-        database = dataSourceAndDatabase.getSecond();
+        database = configureDatabase(dataSourceProps);
 
         Set<MappedSchema> customSchemas = new HashSet<>(Collections.singletonList(DummyLinearStateSchemaV1.INSTANCE));
         HibernateConfiguration hibernateConfig = new HibernateConfiguration(new NodeSchemaService(customSchemas));
-        transaction(database,
+        database.transaction(
                     statement -> { services = new MockServices(getMEGA_CORP_KEY()) {
                         @NotNull
                         @Override
@@ -107,7 +101,7 @@ public class VaultQueryJavaTests {
 
     @After
     public void cleanUp() throws IOException {
-        dataSource.close();
+        database.close();
     }
 
     /**
@@ -120,7 +114,7 @@ public class VaultQueryJavaTests {
 
     @Test
     public void unconsumedLinearStates() throws VaultQueryException {
-        transaction(database, tx -> {
+        database.transaction(tx -> {
 
             VaultFiller.fillWithSomeTestLinearStates(services, 3);
 
@@ -136,7 +130,7 @@ public class VaultQueryJavaTests {
 
     @Test
     public void consumedCashStates() {
-        transaction(database, tx -> {
+        database.transaction(tx -> {
 
             Amount<Currency> amount = new Amount<>(100, Currency.getInstance("USD"));
 
@@ -166,7 +160,7 @@ public class VaultQueryJavaTests {
 
     @Test
     public void consumedDealStatesPagedSorted() throws VaultQueryException {
-        transaction(database, tx -> {
+        database.transaction(tx -> {
 
             Vault<LinearState> states = VaultFiller.fillWithSomeTestLinearStates(services, 10, null);
             StateAndRef<LinearState> linearState = states.getStates().iterator().next();
@@ -207,7 +201,7 @@ public class VaultQueryJavaTests {
 
     @Test
     public void customQueryForCashStatesWithAmountOfCurrencyGreaterOrEqualThanQuantity() {
-        transaction(database, tx -> {
+        database.transaction(tx -> {
 
             Amount<Currency> pounds = new Amount<>(100, Currency.getInstance("GBP"));
             Amount<Currency> dollars100 = new Amount<>(100, Currency.getInstance("USD"));
@@ -251,7 +245,7 @@ public class VaultQueryJavaTests {
 
     @Test
     public void trackCashStates() {
-        transaction(database, tx -> {
+        database.transaction(tx -> {
             VaultFiller.fillWithSomeTestCash(services,
                     new Amount<>(100, Currency.getInstance("USD")),
                     TestConstants.getDUMMY_NOTARY(),
@@ -282,7 +276,7 @@ public class VaultQueryJavaTests {
 
     @Test
     public void trackDealStatesPagedSorted() {
-        transaction(database, tx -> {
+        database.transaction(tx -> {
 
             Vault<LinearState> states = VaultFiller.fillWithSomeTestLinearStates(services, 10, null);
             UniqueIdentifier uid = states.getStates().iterator().next().component1().getData().getLinearId();
@@ -323,7 +317,7 @@ public class VaultQueryJavaTests {
 
     @Test
     public void consumedStatesDeprecated() {
-        transaction(database, tx -> {
+        database.transaction(tx -> {
             Amount<Currency> amount = new Amount<>(100, USD);
             VaultFiller.fillWithSomeTestCash(services,
                     new Amount<>(100, USD),
@@ -355,7 +349,7 @@ public class VaultQueryJavaTests {
 
     @Test
     public void consumedStatesForLinearIdDeprecated() {
-        transaction(database, tx -> {
+        database.transaction(tx -> {
 
             Vault<LinearState> linearStates = VaultFiller.fillWithSomeTestLinearStates(services, 4,null);
             linearStates.getStates().iterator().next().component1().getData().getLinearId();
@@ -383,7 +377,7 @@ public class VaultQueryJavaTests {
 
     @Test
     public void aggregateFunctionsWithoutGroupClause() {
-        transaction(database, tx -> {
+        database.transaction(tx -> {
 
             Amount<Currency> dollars100 = new Amount<>(100, Currency.getInstance("USD"));
             Amount<Currency> dollars200 = new Amount<>(200, Currency.getInstance("USD"));
@@ -427,7 +421,7 @@ public class VaultQueryJavaTests {
 
     @Test
     public void aggregateFunctionsWithSingleGroupClause() {
-        transaction(database, tx -> {
+        database.transaction(tx -> {
 
             Amount<Currency> dollars100 = new Amount<>(100, Currency.getInstance("USD"));
             Amount<Currency> dollars200 = new Amount<>(200, Currency.getInstance("USD"));
@@ -497,7 +491,7 @@ public class VaultQueryJavaTests {
 
     @Test
     public void aggregateFunctionsSumByIssuerAndCurrencyAndSortByAggregateSum() {
-        transaction(database, tx -> {
+        database.transaction(tx -> {
 
             Amount<Currency> dollars100 = new Amount<>(100, Currency.getInstance("USD"));
             Amount<Currency> dollars200 = new Amount<>(200, Currency.getInstance("USD"));
