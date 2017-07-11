@@ -2,7 +2,6 @@ package net.corda.bank.api
 
 import net.corda.core.contracts.Amount
 import net.corda.core.contracts.currency
-import net.corda.core.flows.FlowException
 import net.corda.core.getOrThrow
 import net.corda.core.messaging.CordaRPCOps
 import net.corda.core.messaging.startFlow
@@ -10,8 +9,6 @@ import net.corda.core.utilities.OpaqueBytes
 import net.corda.core.utilities.loggerFor
 import net.corda.flows.IssuerFlow.IssuanceRequester
 import org.bouncycastle.asn1.x500.X500Name
-import java.io.PrintWriter
-import java.io.StringWriter
 import java.time.LocalDateTime
 import javax.ws.rs.*
 import javax.ws.rs.core.MediaType
