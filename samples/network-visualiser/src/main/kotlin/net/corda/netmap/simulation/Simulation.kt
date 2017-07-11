@@ -265,8 +265,7 @@ abstract class Simulation(val networkSendManuallyPumped: Boolean,
         }
     }
 
-    val networkInitialisationFinished: CordaFuture<*> =
-            mockNet.nodes.map { it.networkMapRegistrationFuture }.transpose()
+    val networkInitialisationFinished = mockNet.nodes.map { it.networkMapRegistrationFuture }.transpose()
 
     fun start(): CordaFuture<Unit> {
         mockNet.startNodes()
